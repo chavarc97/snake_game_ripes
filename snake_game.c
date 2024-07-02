@@ -41,11 +41,15 @@ const int down_offset = led_width; // down offset
 //============================================================
 
 // TIME SIMULATION
+//============================================================
 int rand_seed = 0; // random seed
+//============================================================
 
 // SNAKE STRUCTURE
-int tail_idx;                                         // tail index
-int *snake[LED_MATRIX_0_WIDTH * LED_MATRIX_0_HEIGHT][LED_MATRIX_0_WIDTH * LED_MATRIX_0_HEIGHT]; // snake array
+//============================================================
+int tail_idx;                                             // tail index
+int *snake[LED_MATRIX_0_WIDTH * LED_MATRIX_0_HEIGHT / 4]; // snake array
+//============================================================
 
 // GLOBAL STATE
 int game_state; // game state
@@ -56,21 +60,24 @@ void innit_snake();
 void move_snake(int direction);
 void spawn_fruit();
 void print_border();
+void reset_game();
 //============================================================
 
 void main()
 {
-    for (int i = 0; i < 10000; i++)
-        ;           // create a delay
+    game_state = IS_ALIVE;
+    int direction = right_offset;
     print_border(); // print the border
     innit_snake();  // innit the snake
     spawn_fruit();  // spawn the fruit
-    game_state = IS_ALIVE;
-    int direction = right_offset;
+    for (int i = 0; i < 10000; i++)
+        ; // delay
     while (game_state)
     {
-        for (int i = 0; i < 100000; i++)
+        for (int i = 0; i < 100; i++)
             ; // delay
+        if (*sw_base & SW0)
+            reset_game();
         int prev_dir = direction;
         if (*pad_up)
             direction = up_offset;
@@ -89,20 +96,21 @@ void main()
 
 void innit_snake()
 {
-    // SET THE HEAD OF THE SNAKE
-    int *head = led_base + ((led_width) * (led_height >> 1) + (led_width >> 1));
-    snake[0][0] = head; // set the head of the snake
-    // snake should be 4 x 2 leds
-    int i = 0;
-    for (i = 0; i < INITIAL_SNAKE_LENGTH; i++)
+    tail_idx = INITIAL_SNAKE_LENGTH - 1;
+    int *head = led_base + (((led_width) * (led_height >> 1)) - (led_width >> 1));
+    *head = RED;
+    snake[0] = head;
+    for (int i = 1; i <= tail_idx; i++)
     {
-        for (int dx = 0; dx < 4; dx++)
+        snake[i] = snake[i - 1] - 1;
+    }
+    for (int i = 0; i < INITIAL_SNAKE_LENGTH; i++)
+    {
+        for (int j = 0; j < 2; j++)
         {
-            for (int dy = 0; dy < 2; dy++)
+            for (int k = 0; k < 2; k++)
             {
-                int *led = head + dx + dy * led_width;
-                *led = RED;
-                snake[i] = led;
+                *(snake[i] + j + k * led_width) = RED;
             }
         }
     }
@@ -136,47 +144,55 @@ void spawn_fruit()
 
 void move_snake(int direction)
 {
-   int *old_part = snake[0][0];
-   snake[0][0] += direction;
-   int *head_ptr = snake[0][0];
+    int *old_part = snake[0];
+    snake[0] += direction;
+    int head_ptr = snake[0];
 
-    // if snake hits the border or itself then it is dead
-    if(head_ptr == RED || head_ptr == WHITE){
+    // check if the snake has hit the border or itself
+    if(head_ptr == WHITE || head_ptr == RED)
+    {
         game_state = IS_DEAD;
         return;
     }
 
-    // if snake eats the fruit
+    // check if the snake has eaten the fruit
     if(head_ptr == GREEN)
     {
         tail_idx++;
-        snake[tail_idx][tail_idx] = snake[tail_idx - 1][tail_idx - 1] + 1;
-        int *tail = snake[tail_idx][tail_idx];
+        snake[tail_idx] = snake[tail_idx - 1] + 1;
+        int *tail = snake[tail_idx];
         *tail = RED;
         spawn_fruit();
     }
 
-    // move the snake
-    for(int i = 1; i <= tail_idx; i++)
+    // update the snake with new parts and remove the tail
+    for (int i = 1; i <= tail_idx; i++)
+    {
+        if(i == tail_idx)
+        {
+            for(int j = 0; j < 2; j++)
+            {
+                for(int k = 0; k < 2; k++)
+                {
+                    *(snake[i] + j + k * led_width) = BLACK;
+                }
+            }
+        }
+        int *curr_part = snake[i];
+        snake[i] = old_part;
+        old_part = curr_part;
+    }
+
+    // fill the array with the new snake
+    for(int i = 0; i <= tail_idx; i++)
     {
         for(int j = 0; j < 2; j++)
         {
-            if(i == tail_idx)
+            for(int k = 0; k < 2; k++)
             {
-                int *tail = snake[i][j];
-                *tail = BLACK;
+                *(snake[i] + j + k * led_width) = RED;
             }
-            int curr_snake = snake[i][j];
-            snake[i][j] = old_part;
-            old_part = curr_snake;
         }
-    }
-    // fill the array with the new snake
-    for(int i = 0; i < tail_idx; i++)
-    {
-        for(int j = 0; j < 2; j++)
-        int *ptr = snake[i][j];
-        *ptr = RED;
     }
 }
 
@@ -192,4 +208,19 @@ void print_border()
         led_base[i * led_width] = WHITE;
         led_base[i * led_width + led_width - 1] = WHITE;
     }
+}
+
+void reset_game()
+{
+    for (int i = 0; i < led_size; i++)
+    {
+        for (int j = 0; j < led_size; j++)
+        {
+            led_base[i + j * led_width] = BLACK;
+        }
+    }
+    game_state = IS_ALIVE;
+    innit_snake();
+    spawn_fruit();
+    print_border();
 }
