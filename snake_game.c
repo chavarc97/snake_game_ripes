@@ -96,7 +96,7 @@ void main()
 
 void innit_snake()
 {
-    tail_idx = INITIAL_SNAKE_LENGTH - 1;
+    tail_idx = INITIAL_SNAKE_LENGTH;
     int *head = led_base + (((led_width) * (led_height >> 1)) - (led_width >> 1));
     *head = RED;
     snake[0] = head;
@@ -123,47 +123,26 @@ void innit_snake()
 
 void spawn_fruit()
 {
-    // TODO: this only spawns up to 5 fruits and then stops
     int valid_position = 1;
     rand_seed += 5;
-    int rand_x;
-    int rand_y;
-    do
+    while (valid_position)
     {
-        rand_x =  rand() % (led_width -2) + 1;
-        rand_y =  rand() % (led_height -2) + 1;
-    } while (led_base[rand_y * led_width + rand_x] != RED);
-
-    // render the fruit
-    for(int dx = 0; dx < 2; dx++)
-    {
-        for(int dy = 0; dy < 2; dy++)
+        srand(rand_seed);
+        int rand_x = rand() % (led_width - 2);
+        int rand_y = rand() % (led_height - 2);
+        int *rand_pos = led_base + (rand_y * led_width + rand_x);
+        if (*rand_pos != RED)
         {
-            int nx = rand_x + dx;
-            int ny = rand_y + dy;
-            led_base[ny * led_width + nx] = GREEN;
+            valid_position = 0;
+            for (int i = 0; i < 2; i++)
+            {
+                for (int j = 0; j < 2; j++)
+                {
+                    *(rand_pos + i + j * led_width) = GREEN;
+                }
+            }
         }
     }
-    
-    // while (valid_position)
-    // {
-
-    //     // srand(rand_seed);
-    //     /* int rand_x = rand() % (led_width - 2);
-    //     int rand_y = rand() % (led_height - 2);
-    //     int *rand_pos = led_base + (rand_y * led_width + rand_x);
-    //     if (*rand_pos != RED)
-    //     {
-    //         valid_position = 0;
-    //         for (int i = 0; i < 2; i++)
-    //         {
-    //             for (int j = 0; j < 2; j++)
-    //             {
-    //                 *(rand_pos + i + j * led_width) = GREEN;
-    //             }
-    //         }
-    //     } */
-    // }
     printf("Fruit spawned\n");
 }
 
@@ -180,26 +159,9 @@ void move_snake(int direction)
         printf("Snake collided with border\n");
         return;
     }
-    // collision with lateral borders
-    // TODO: check if this works !!!
-    if (head_ptr % led_width == 0 || head_ptr % led_width == led_width - 1)
-    {
-        game_state = IS_DEAD;
-        printf("Snake collided with border\n");
-        return;
-    }
 
     // Check for collisions with itself
-    // TODO: check if this works !!!
-    for (int i = 1; i <= tail_idx; i++)
-    {
-        if (snake[i] == head_ptr)
-        {
-            game_state = IS_DEAD;
-            printf("Snake collided with itself\n");
-            return;
-        }
-    }
+   
 
     // Check if the snake has eaten the fruit
     if (*head_ptr == GREEN)
